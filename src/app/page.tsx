@@ -11,6 +11,8 @@ import WeatherIcon from "@/components/WeatherIcon";
 import { getDayOrNightIcon } from "@/utils/getDayOrNightIcon";
 import WeatherDetails from "@/components/WeatherDetails";
 import { meterToKilometers } from "@/utils/meterToKilometers";
+import { convertWindSpeed } from "@/utils/convertWindSpeed";
+import ForecastWeatherDetails from "@/components/ForcastWeatherDetails";
  
 
 const locales = {fr, enGB};
@@ -79,8 +81,26 @@ export default function Home() {
       return data;
     }
   )
-    console.log(data);
     const firstData = data?.list[0]
+
+    const uniquesDates = [
+      ...new Set(
+        data?.list.map(
+          (entry) => new Date(entry.dt * 1000).toISOString().split("T")[0]
+        )
+      )
+    ];
+    const firstDateForEachDate = uniquesDates.map((date) => {
+      return data?.list.find((entry) => {
+        const entryDate = new Date(entry.dt * 1000).toISOString().split("T")[0];
+        const entryTime = new Date(entry.dt * 1000).getHours();
+        return entryDate === date && entryTime >= 6;
+      });
+    });
+
+    function convertTimeToHuman(date: number) {
+      return date * 1000;
+    }
     const timestampRise = data?.city.sunrise ? data.city.sunrise * 1000 : 1709102136;
     const timestampSet = data?.city.sunset ? data.city.sunset * 1000 : 1709141136;
     if(isLoading) {
@@ -142,7 +162,7 @@ export default function Home() {
                 <WeatherDetails 
                 visibility={meterToKilometers(firstData?.visibility ?? 0)} 
                 humidity={`${firstData?.main.humidity} %`} 
-                windSpeed={`${firstData?.wind.speed} km/h`} 
+                windSpeed={convertWindSpeed(firstData?.wind.speed ?? 0)} 
                 airPressure={`${firstData?.main.pressure} hPa`} 
                 sunrise={format(timestampRise ?? 1702949452, "H:mm", {locale:fr})}
                 sunset={format(timestampSet ?? 1702517657, "H:mm", {locale:fr})} />
@@ -150,10 +170,27 @@ export default function Home() {
         </div>
       </section>
 
-
-
       <section className="flex w-full flex-col gap-4">
         <p className="text-2xl">Prévisions (7 jours)</p>
+        {firstDateForEachDate.map((d, i)=> (
+          <ForecastWeatherDetails key={i}
+            description = {d?.weather[0].description ?? ""}
+            weatherIcon = {d?.weather[0].icon ?? "01d"}
+            date = {format(parseISO(d?.dt_txt ?? ""), "dd.MM", {locale:fr})}
+            day = {format(parseISO(d?.dt_txt ?? ""), "EEEE", {locale: fr})}
+            feels_like= {d?.main.feels_like ?? 0}
+            temp= {d?.main.temp ?? 0}
+            temp_max= {d?.main.temp_max ?? 0}
+            temp_min= {d?.main.temp_min ?? 0}
+            airPressure= {`${d?.main.pressure} hPa`}
+            humidity= {`${d?.main.humidity} %`}
+            sunrise= {format(convertTimeToHuman(data?.city.sunrise ?? 1702949452), "H:mm")}
+            sunset= {format(convertTimeToHuman(data?.city.sunset ?? 1702517657), "H:mm")}
+            visibility= {`${meterToKilometers(d?.visibility ?? 0)}`}
+            windSpeed= {`${convertWindSpeed(d?.wind.speed ?? 0)}`}
+          />
+        ))}
+        
       </section>
     </main>
   </div>)
